@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Akkusativ Schritt für Schritt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one full-screen stage, one idea per slide, content appears step by step.
+   Gender colours: der blue, die red, das green, plural violet. Yellow marker = what changes. */
+:root{
+  --bg:#F3F5F8; --dot:#DCE2E9; --surface:#FFFFFF; --surface-2:#E8EDF3; --fg:#13222E; --muted:#5B6C7C; --line:#D5DCE4;
+  --der:#1D5BBF; --die:#C42B58; --das:#1F7A48; --pl:#7048B4;
+  --hl:#FFDB4D; --accent:#F0A900; --good:#1F7A48; --bad:#C42B58;
+  --shadow:0 1px 2px rgba(19,34,46,.06),0 8px 24px -12px rgba(19,34,46,.18);
+  --display:"Bricolage Grotesque","Instrument Sans",system-ui,"Segoe UI",sans-serif;
+  --body:"Instrument Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:light;
+  font-size:clamp(14px,calc(.55vw + 1.1vh),24px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D171F; --dot:#18262F; --surface:#15232D; --surface-2:#1E303C; --fg:#E8EFF4; --muted:#9AABB8; --line:#2A3D4A;
+    --der:#7DB3FF; --die:#FF8FAB; --das:#6FDBA3; --pl:#BDA5FF;
+    --hl:rgba(255,196,0,.42); --accent:#FFC933; --good:#6FDBA3; --bad:#FF8FAB;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D171F; --dot:#18262F; --surface:#15232D; --surface-2:#1E303C; --fg:#E8EFF4; --muted:#9AABB8; --line:#2A3D4A;
+  --der:#7DB3FF; --die:#FF8FAB; --das:#6FDBA3; --pl:#BDA5FF;
+  --hl:rgba(255,196,0,.42); --accent:#FFC933; --good:#6FDBA3; --bad:#FF8FAB;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg);
+  background-image:radial-gradient(var(--dot) 1.2px,transparent 1.2px);
+  background-size:26px 26px;
+  color:var(--fg);
+  font-family:var(--body); font-size:1rem; line-height:1.55;
+  padding:env(safe-area-inset-top,0px) max(16px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(16px,env(safe-area-inset-left,0px));
+  overflow:hidden;
+}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:3px solid var(--der);outline-offset:2px}
+#app{height:100%;display:flex;flex-direction:column;min-height:0}
+
+/* ---------- top bar ---------- */
+.top{display:flex;align-items:center;gap:1rem;padding-block:.8rem .4rem}
+.brand{font-family:var(--display);font-weight:800;font-size:1.15rem;letter-spacing:-.01em;white-space:nowrap}
+.chips{display:flex;gap:.35rem;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none;padding-block:.2rem}
+.chips::-webkit-scrollbar{display:none}
+.chip{border:1px solid transparent;background:transparent;color:var(--muted);border-radius:999px;padding:.3rem .9rem;font-size:.9rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .25s,color .25s}
+.chip:hover{color:var(--fg);background:var(--surface-2)}
+.chip.done{color:var(--fg)}
+.chip[aria-current="true"]{background:var(--fg);color:var(--bg)}
+.tools{display:flex;gap:.4rem}
+.ib{width:2.3rem;height:2.3rem;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer;color:var(--muted);transition:color .2s,border-color .2s}
+.ib:hover{color:var(--fg);border-color:var(--fg)}
+.ib svg{width:1.05rem;height:1.05rem}
+
+/* ---------- stage ---------- */
+.stage{flex:1;min-height:0;position:relative;overflow:hidden}
+.slide{position:absolute;inset:0;display:flex;overflow-y:auto;overflow-x:hidden;
+  opacity:0;visibility:hidden;transform:translateX(0);
+  padding-inline:2.6rem}
+.slide.before{transform:translateX(-3.5rem)}
+.slide.after{transform:translateX(3.5rem)}
+.ready .slide{transition:opacity .45s ease,transform .6s cubic-bezier(.2,.75,.2,1),visibility 0s linear .6s}
+.slide.active{opacity:1;visibility:visible;transform:none}
+.ready .slide.active{transition:opacity .45s ease .08s,transform .6s cubic-bezier(.2,.75,.2,1) .08s,visibility 0s}
+.inner{margin:auto;width:100%;max-width:70rem;padding-block:1rem;display:flex;flex-direction:column;gap:1.6rem}
+
+.edge{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:2.8rem;height:2.8rem;border-radius:50%;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center;cursor:pointer;opacity:.55;transition:opacity .2s,transform .2s}
+.edge:hover{opacity:1;transform:translateY(-50%) scale(1.06)}
+.edge[disabled]{opacity:0;pointer-events:none}
+.edge svg{width:1.2rem;height:1.2rem}
+.edge.l{left:0}.edge.r{right:0}
+@media (hover:none),(max-width:760px){.edge{display:none}.slide{padding-inline:0}}
+
+/* ---------- bottom bar ---------- */
+.foot{padding-block:.5rem .8rem;display:flex;flex-direction:column;gap:.7rem}
+.segs{display:flex;gap:4px;height:.9rem;align-items:center}
+.seg{flex:1;height:5px;border:0;padding:0;border-radius:3px;background:var(--line);cursor:pointer;position:relative;transition:background .3s,height .3s}
+.seg::after{content:"";position:absolute;inset:-8px 0}
+.seg.done{background:var(--fg);opacity:.55}
+.seg.cur{background:var(--accent);height:9px;opacity:1}
+.navrow{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:.5rem 1.3rem;cursor:pointer;font-weight:600;display:inline-flex;gap:.5rem;align-items:center;transition:transform .15s,opacity .2s}
+.btn:active{transform:scale(.97)}
+.btn.next{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn[disabled]{opacity:.3;cursor:default}
+.meta{display:flex;align-items:center;gap:1rem;color:var(--muted);font-size:.9rem}
+.pips{display:flex;gap:.35rem}
+.pips i{width:.55rem;height:.55rem;border-radius:50%;border:1.5px solid var(--muted);transition:background .25s,border-color .25s}
+.pips i.f{background:var(--accent);border-color:var(--accent)}
+.count{font-variant-numeric:tabular-nums}
+.hint{display:none}
+@media (min-width:980px){.hint{display:inline}}
+kbd{font-family:var(--body);font-size:.8rem;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 .35rem;background:var(--surface)}
+
+/* ---------- reveal mechanics ---------- */
+.step{opacity:0;transform:translateY(.5rem);transition:opacity .4s,transform .4s;pointer-events:none}
+.step.on{opacity:1;transform:none;pointer-events:auto}
+.dimit{transition:opacity .4s}
+.dimit.on{opacity:.28}
+.hl{background:linear-gradient(var(--hl),var(--hl)) no-repeat 0 90%/0% 46%;transition:background-size .55s ease;padding-inline:.1em}
+.hl.on{background-size:100% 46%}
+.swap{display:grid}
+.swap>*{grid-area:1/1}
+
+/* ---------- typography ---------- */
+.head{display:flex;flex-direction:column;gap:.35rem}
+.tag{margin:0;font-size:.85rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.title{margin:0;font-family:var(--display);font-weight:800;font-size:3rem;line-height:1.02;letter-spacing:-.025em;text-wrap:balance}
+.sub{margin:0;font-size:1.3rem;color:var(--muted)}
+.m{color:var(--der)} .f{color:var(--die)} .n{color:var(--das)} .p{color:var(--pl)}
+.art{font-weight:800}
+.muted{color:var(--muted)}
+.note{margin:0;max-width:48rem;font-size:1.45rem;line-height:1.55}
+.rule{margin:0;padding:1rem 1.4rem;background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--accent);border-radius:8px;box-shadow:var(--shadow);font-size:1.45rem;line-height:1.55;max-width:52rem}
+.rule b{font-weight:700}
+.big{font-family:var(--display);font-size:2.4rem;font-weight:700;line-height:1.2;margin:0}
+.dsp{font-family:var(--display)}
+.xmark{color:var(--bad);text-decoration:line-through;text-decoration-thickness:3px}
+.okmark{color:var(--good)}
+
+/* ---------- intro ---------- */
+.intro-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:3rem;align-items:center}
+.intro-text{display:flex;flex-direction:column;gap:1rem;align-items:flex-start}
+.hero-word{margin:0;font-family:var(--display);font-weight:800;font-size:6.6rem;line-height:.92;letter-spacing:-.04em}
+.hero-sub{margin:0;font-family:var(--display);font-size:2rem;font-weight:500;color:var(--muted)}
+.swapcards{display:flex;flex-direction:column;gap:1rem}
+.swapcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.2rem 1.5rem 1.3rem;display:flex;flex-direction:column;gap:.6rem;align-items:center;text-align:center}
+.swapcard .big-swap{font-family:var(--display);font-size:3.9rem;font-weight:800;letter-spacing:-.025em;justify-items:center;line-height:1.1}
+.swapcard .caps{justify-items:center;min-height:1.8rem;font-size:1.2rem;color:var(--muted)}
+.swapcard .caps p{margin:0}
+@media (max-width:760px){.intro-grid{grid-template-columns:1fr;gap:1.5rem}.hero-word{font-size:3.8rem}.hero-sub{font-size:1.4rem}}
+
+/* ---------- tables ---------- */
+.tbl{display:flex;flex-direction:column;gap:.7rem;align-self:center;width:min(100%,48rem)}
+.row{display:grid;grid-template-columns:1fr 3rem 1fr;align-items:center;gap:.4rem;padding:.75rem 1.2rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.row.hd{background:transparent;border-color:transparent;box-shadow:none;padding-block:0;color:var(--muted);font-size:1rem;font-weight:600}
+.cell{font-family:var(--display);font-size:2.1rem;font-weight:600;min-width:0}
+.arrow{text-align:center;color:var(--muted);font-size:1.6rem}
+.mir{width:min(100%,58rem)}
+.row.mir5{grid-template-columns:1.1fr .8fr 2.5rem 1.1fr .8fr}
+.pron{font-family:var(--display);font-weight:800;font-size:2.1rem}
+.ask{text-align:center;margin:0}
+
+/* ---------- cards ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:1rem}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:1.2rem 1.3rem;display:flex;flex-direction:column;gap:.7rem;min-width:0}
+.card .pair{display:flex;gap:.7rem;align-items:baseline;font-family:var(--display);font-size:1.8rem;font-weight:600;flex-wrap:wrap}
+.card .pair .arr{color:var(--muted)}
+.pair2{display:flex;flex-direction:column;gap:.7rem}
+.pl{display:flex;flex-direction:column;gap:.1rem}
+.pl+.pl{border-top:1px dashed var(--line);padding-top:.7rem}
+.pl small{font-size:.85rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.pl>span{font-family:var(--display);font-size:2rem;font-weight:600;line-height:1.2}
+.card .sent{margin:0;font-family:var(--display);font-size:1.4rem}
+.verb{font-family:var(--display);font-weight:800;font-size:1.5rem}
+.vsent{margin:0;font-family:var(--display);font-size:1.4rem}
+
+/* ---------- anatomy ---------- */
+.anat{display:flex;gap:2.4rem;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.part{display:flex;flex-direction:column;align-items:center;gap:.8rem}
+.word{font-family:var(--display);font-size:4.4rem;font-weight:700;line-height:1.1;letter-spacing:-.025em}
+.lab{display:flex;flex-direction:column;align-items:center;font-family:var(--display);background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:.5rem 1.1rem;min-width:8rem}
+.lab b{font-size:1.6rem}
+.lab span{color:var(--muted);font-size:1rem;font-family:var(--body)}
+
+/* ---------- Wer? / Wen? slide ---------- */
+.wsent{display:grid;grid-template-columns:repeat(3,auto);gap:1rem 2.4rem;justify-content:center;align-items:start}
+.wcol{display:flex;flex-direction:column;align-items:center;gap:1.3rem;min-width:0}
+.wsent .word{font-size:3.8rem;white-space:nowrap}
+.hn{background:linear-gradient(color-mix(in srgb,var(--fg) 22%,transparent),color-mix(in srgb,var(--fg) 22%,transparent)) no-repeat 0 90%/0% 46%;transition:background-size .55s ease;padding-inline:.1em}
+.hn.on{background-size:100% 46%}
+.qcard{position:relative;display:flex;flex-direction:column;align-items:center;gap:.4rem;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:1.1rem 1.4rem;min-width:15.5rem}
+.qcard::before{content:"";position:absolute;top:-.5rem;left:50%;width:.9rem;height:.9rem;background:var(--surface);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
+.qcard .q{margin:0;font-family:var(--display);font-size:2rem;font-weight:800;line-height:1.15}
+.qcard .ans{margin:0;font-family:var(--display);font-size:1.7rem;font-weight:600}
+.qcard .why2{margin:0;color:var(--muted);font-size:1.05rem}
+.qcard.soft{background:transparent;box-shadow:none;border-style:dashed;min-width:8rem}
+.qcard.soft::before{display:none}
+@media (max-width:760px){.wsent{grid-template-columns:1fr}.wsent .word{font-size:2.6rem}.qcard{min-width:0;width:100%}}
+
+/* ---------- quiz rows ---------- */
+.qlist{display:flex;flex-direction:column;gap:.7rem;width:min(100%,58rem);align-self:center}
+.qrow{display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:.7rem 1.2rem}
+.qs{font-family:var(--display);font-size:1.8rem;font-weight:500}
+.qs small{font-family:var(--body);font-size:1rem;color:var(--muted);margin-left:.8rem}
+.blank{display:inline-block;min-width:3.4em;border-bottom:3px solid var(--line);text-align:center;margin-inline:.2em;font-weight:800}
+.why{font-size:.95rem;font-weight:500;border-radius:999px;padding:.25rem .85rem;background:var(--surface-2);white-space:nowrap}
+.why.ak{background:var(--hl);color:#13222E}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .why.ak{color:var(--fg)}}
+:root[data-theme="dark"] .why.ak{color:var(--fg)}
+@media (max-width:640px){.qrow{grid-template-columns:1fr}.qs{font-size:1.35rem}}
+
+/* ---------- replace practice ---------- */
+.rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(21rem,1fr));gap:.9rem}
+.rc{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:.95rem 1.2rem;display:flex;flex-direction:column;gap:.3rem;min-width:0}
+.rc p{margin:0;font-family:var(--display);font-size:1.6rem}
+.rc .a{font-weight:700}
+.rc .tipx{font-family:var(--body);font-weight:400;font-size:.95rem;color:var(--muted)}
+
+/* ---------- people pairs ---------- */
+.pairs{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:1rem;width:min(100%,50rem);align-self:center}
+.pc{display:flex;align-items:center;justify-content:center;gap:1rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:1.3rem;font-family:var(--display);font-size:2.8rem;font-weight:700}
+.pc .arr{color:var(--muted);font-weight:500}
+.pc .to{font-weight:800}
+.sents{display:flex;flex-direction:column;gap:.4rem;align-items:center;font-family:var(--display);font-size:1.8rem}
+.sents p{margin:0}
+
+/* ---------- full pronoun table ---------- */
+.ptbl{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;width:min(100%,50rem);align-self:center}
+.pcol{display:flex;flex-direction:column;gap:.5rem}
+.pcol h3{margin:0 0 .2rem;color:var(--muted);font-size:.9rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.pr{display:grid;grid-template-columns:1fr 2rem 1fr;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:.5rem 1.1rem;font-family:var(--display);font-size:1.9rem;font-weight:600}
+.pr .arrow{font-size:1.2rem}
+.pr .to{font-weight:800}
+@media (max-width:640px){.ptbl{grid-template-columns:1fr}}
+
+/* ---------- sentence roles ---------- */
+.roles{display:flex;flex-direction:column;gap:1.5rem;align-items:center}
+.sline{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.sline .s{font-family:var(--display);font-size:3.6rem;font-weight:700;letter-spacing:-.025em;line-height:1.15;text-align:center}
+.sline .r{display:flex;gap:2rem;font-size:1.15rem;color:var(--muted);flex-wrap:wrap;justify-content:center}
+
+/* ---------- flow ---------- */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:1rem}
+.fc{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:1.3rem;display:flex;flex-direction:column;gap:.7rem}
+.fc .n1{width:2.3rem;height:2.3rem;border-radius:50%;background:var(--fg);color:var(--bg);display:grid;place-items:center;font-family:var(--display);font-weight:800}
+.fc h3{margin:0;font-family:var(--display);font-size:1.8rem}
+.fc .ex{margin:0;font-family:var(--display);font-size:1.55rem}
+.fc .ar{margin:0;font-size:1.1rem;color:var(--muted)}
+
+/* ---------- für ---------- */
+.fur{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center}
+.fx{padding:.35rem 1rem;border-radius:999px;border:2px solid currentColor;font-family:var(--display);font-weight:700;font-size:1.55rem;background:var(--surface)}
+
+/* ---------- recap ---------- */
+.recap{display:grid;grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));gap:1rem}
+.rcap{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:1.4rem;display:flex;flex-direction:column;gap:.7rem}
+.rcap h3{margin:0;font-size:.9rem;color:var(--muted);font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.rcap .fm{margin:0;font-family:var(--display);font-size:1.9rem;font-weight:700;line-height:1.4}
+.rcap p{margin:0}
+
+/* ---------- summary ---------- */
+.sum{display:flex;flex-direction:column;gap:.7rem}
+.srow{display:grid;grid-template-columns:8.5rem 1fr;gap:1.2rem;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:.85rem 1.3rem}
+.sl{font-size:.9rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.sc{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1.8rem;min-width:0}
+.sc.col{flex-direction:column;align-items:flex-start;gap:.6rem}
+.sbig{font-family:var(--display);font-size:1.75rem;font-weight:700}
+.prow{display:flex;flex-wrap:wrap;gap:.45rem;align-items:stretch}
+.pch{display:flex;flex-direction:column;align-items:center;min-width:4.7rem;padding:.35rem .55rem;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-family:var(--display);line-height:1.15}
+.pch .a{font-size:1.1rem;color:var(--muted)}
+.pch i{font-style:normal;font-size:.9rem;color:var(--muted)}
+.pch .b{font-size:1.65rem;font-weight:800}
+.pch.same{background:transparent;border-style:dashed;opacity:.65}
+.vdiv{width:2px;background:var(--line);margin-inline:.5rem;border-radius:2px}
+.legend{margin:0;font-size:1.05rem;color:var(--muted)}
+@media (max-width:760px){.srow{grid-template-columns:1fr;gap:.4rem}}
+
+/* ---------- overview ---------- */
+.ov{position:fixed;inset:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);display:none;overflow-y:auto;padding:max(1.5rem,env(safe-area-inset-top,0px)) max(1.5rem,env(safe-area-inset-right,0px)) 2rem max(1.5rem,env(safe-area-inset-left,0px))}
+.ov.open{display:block;animation:fade .25s ease both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.ov h2{margin:0 0 1rem;font-family:var(--display);font-size:2rem}
+.ovgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.8rem;max-width:80rem;margin:0 auto}
+.ovitem{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;box-shadow:var(--shadow);padding:.9rem 1rem;cursor:pointer;display:flex;flex-direction:column;gap:.2rem;transition:transform .15s,border-color .15s}
+.ovitem:hover{transform:translateY(-2px);border-color:var(--fg)}
+.ovitem.cur{border-color:var(--accent);border-width:2px}
+.ovitem small{color:var(--muted);font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.ovitem span{font-family:var(--display);font-weight:700;font-size:1.2rem;line-height:1.2}
+.ovtop{max-width:80rem;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+
+@media (max-width:640px){
+  .title{font-size:2.1rem}
+  .word{font-size:2.8rem}
+  .cell,.pron{font-size:1.35rem}
+  .row{padding-inline:.6rem}
+  .sline .s{font-size:2.2rem}
+  .swapcard .big-swap{font-size:2.7rem}
+  .big{font-size:1.7rem}
+  .note,.rule{font-size:1.15rem}
+  .brand{display:none}
+  .meta .count{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  .ready .slide,.ready .slide.active{transition:none}
+  .slide.before,.slide.after{transform:none}
+  .step,.hl,.dimit,.seg{transition:none}
+  .ov.open{animation:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">Akkusativ</div>
+    <nav class="chips" aria-label="Abschnitte">
+      <button class="chip" data-stage="1">Artikel</button>
+      <button class="chip" data-stage="2">Wann?</button>
+      <button class="chip" data-stage="3">Pronomen</button>
+      <button class="chip" data-stage="4">Wechseln</button>
+      <button class="chip" data-stage="5">für</button>
+    </nav>
+    <div class="tools">
+      <button class="ib" id="ovBtn" title="Übersicht (O)" aria-label="Übersicht">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      </button>
+      <button class="ib" id="themeBtn" title="Hell / Dunkel" aria-label="Farbmodus wechseln">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>
+      </button>
+      <button class="ib" id="fsBtn" title="Vollbild (F)" aria-label="Vollbild">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <button class="edge l" id="edgeL" aria-label="Zurück"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="edge r" id="edgeR" aria-label="Weiter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 5l7 7-7 7"/></svg></button>
+
+    <!-- 0 · Start -->
+    <section class="slide" data-stage="0" data-title="Vom Artikel zum Pronomen"><div class="inner">
+      <div class="intro-grid">
+        <div class="intro-text">
+          <p class="tag">Unsere Stunde heute</p>
+          <h1 class="hero-word">Akkusativ</h1>
+          <p class="hero-sub">Vom Artikel zum Pronomen</p>
+          <p class="note">Keine neue Regel. Wir machen den Satz nur kürzer.</p>
+        </div>
+        <div class="swapcards">
+          <div class="swapcard">
+            <p class="tag">Wiederholung</p>
+            <div class="swap big-swap">
+              <span class="step m" data-off="1">der Hund</span>
+              <span class="step m" data-step="1"><span class="hl" data-step="1">den</span> Hund</span>
+            </div>
+            <div class="swap caps">
+              <p class="step" data-off="1">Nominativ</p>
+              <p class="step" data-step="1">Akkusativ: der → den</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></section>
+
+    <!-- 1 · Artikel -->
+    <section class="slide" data-stage="1" data-title="Artikel im Akkusativ"><div class="inner">
+      <header class="head">
+        <p class="tag">1 · Artikel</p>
+        <h2 class="title">Artikel im Akkusativ</h2>
+        <p class="sub">Wiederholung: Was kennen wir schon?</p>
+      </header>
+      <div class="tbl">
+        <div class="row hd"><span>Nominativ</span><span></span><span class="step" data-step="1">Akkusativ</span></div>
+        <div class="row">
+          <div class="cell"><span class="m art">der</span> Hund</div>
+          <div class="arrow step" data-step="1">→</div>
+          <div class="cell step" data-step="1"><span class="m art hl" data-step="2">den</span> Hund</div>
+        </div>
+        <div class="row dimit" data-step="2">
+          <div class="cell"><span class="f art">die</span> Frau</div>
+          <div class="arrow step" data-step="1">→</div>
+          <div class="cell step" data-step="1"><span class="f art">die</span> Frau</div>
+        </div>
+        <div class="row dimit" data-step="2">
+          <div class="cell"><span class="n art">das</span> Kind</div>
+          <div class="arrow step" data-step="1">→</div>
+          <div class="cell step" data-step="1"><span class="n art">das</span> Kind</div>
+        </div>
+        <div class="row dimit" data-step="2">
+          <div class="cell"><span class="p art">die</span> Kinder</div>
+          <div class="arrow step" data-step="1">→</div>
+          <div class="cell step" data-step="1"><span class="p art">die</span> Kinder</div>
+        </div>
+      </div>
+      <div class="swap" style="min-height:5rem;justify-items:center;text-align:center">
+        <p class="big ask step" data-step="1" data-off="2">Was ändert sich?</p>
+        <p class="rule step" data-step="2" style="align-self:center">Nur bei den der-Wörtern: <b class="m">der → den</b></p>
+      </div>
+    </div></section>
+
+    <!-- 2 · ein / einen -->
+    <section class="slide" data-stage="1" data-title="ein → einen"><div class="inner">
+      <header class="head">
+        <p class="tag">1 · Artikel</p>
+        <h2 class="title">ein → einen</h2>
+        <p class="sub">Dasselbe bei ein, eine, ein</p>
+      </header>
+      <div class="cards">
+        <article class="card">
+          <div class="pair2">
+            <div class="pl"><small>Nominativ</small><span><span class="m art">ein</span> Salat</span></div>
+            <div class="pl"><small>Akkusativ</small><span><span class="m art hl" data-step="0">einen</span> Salat</span></div>
+          </div>
+          <p class="sent">Ich möchte <b class="m">einen Salat</b>.</p>
+        </article>
+        <article class="card step" data-step="1">
+          <div class="pair2">
+            <div class="pl"><small>Nominativ</small><span><span class="f art">eine</span> Pizza</span></div>
+            <div class="pl"><small>Akkusativ</small><span><span class="f art">eine</span> Pizza</span></div>
+          </div>
+          <p class="sent">Ich möchte <b class="f">eine Pizza</b>.</p>
+        </article>
+        <article class="card step" data-step="2">
+          <div class="pair2">
+            <div class="pl"><small>Nominativ</small><span><span class="n art">ein</span> Wasser</span></div>
+            <div class="pl"><small>Akkusativ</small><span><span class="n art">ein</span> Wasser</span></div>
+          </div>
+          <p class="sent">Ich möchte <b class="n">ein Wasser</b>.</p>
+        </article>
+      </div>
+      <p class="rule step" data-step="3">Nur bei den der-Wörtern: <b class="m">ein → einen</b>. Auch so: <b class="m">kein → keinen</b>. <span class="muted">Ich habe keinen Hund.</span></p>
+    </div></section>
+
+    <!-- 3 · Wann? -->
+    <section class="slide" data-stage="2" data-title="Wann Akkusativ?"><div class="inner">
+      <header class="head">
+        <p class="tag">2 · Wann?</p>
+        <h2 class="title">Wann Akkusativ?</h2>
+        <p class="sub">Wer macht etwas? Wen oder was trifft es?</p>
+      </header>
+      <div class="wsent">
+        <div class="wcol">
+          <span class="word m"><span class="hn" data-step="1">Der Mann</span></span>
+          <div class="qcard step" data-step="1">
+            <p class="q">Wer sieht?</p>
+            <p class="ans">→ <b class="m">der Mann</b></p>
+            <span class="why">Nominativ</span>
+            <p class="why2">Der Mann macht etwas.</p>
+          </div>
+        </div>
+        <div class="wcol">
+          <span class="word muted">sieht</span>
+          <div class="qcard soft step" data-step="1">
+            <p class="q">Verb</p>
+            <p class="why2">sehen</p>
+          </div>
+        </div>
+        <div class="wcol">
+          <span class="word m"><span class="hl" data-step="2">den Hund</span></span>
+          <div class="qcard step" data-step="2">
+            <p class="q">Wen sieht der Mann?</p>
+            <p class="ans">→ <b class="m">den Hund</b></p>
+            <span class="why ak">Akkusativ</span>
+            <p class="why2">Der Hund wird gesehen.</p>
+          </div>
+        </div>
+      </div>
+      <p class="rule step" data-step="3"><b>Wer?</b> → Nominativ: <b class="m">der</b> Mann bleibt.<br><b>Wen? Was?</b> → Akkusativ: <b class="m">der → den</b> Hund ändert sich.</p>
+    </div></section>
+
+    <!-- 4 · Verben -->
+    <section class="slide" data-stage="2" data-title="Verben mit Akkusativ"><div class="inner">
+      <header class="head">
+        <p class="tag">2 · Wann?</p>
+        <h2 class="title">Verben mit Akkusativ</h2>
+        <p class="sub">Diese Verben kennen wir schon</p>
+      </header>
+      <div class="cards">
+        <article class="card"><span class="verb">haben</span><p class="vsent">Ich habe <b class="m">einen Hund</b>.</p></article>
+        <article class="card"><span class="verb">sehen</span><p class="vsent">Ich sehe <b class="f">die Frau</b>.</p></article>
+        <article class="card"><span class="verb">brauchen</span><p class="vsent">Wir brauchen <b class="n">das Buch</b>.</p></article>
+        <article class="card"><span class="verb">kaufen</span><p class="vsent">Er kauft <b class="m">den Tisch</b>.</p></article>
+        <article class="card step" data-step="1"><span class="verb">essen</span><p class="vsent">Ich esse <b class="f">eine Pizza</b>.</p></article>
+        <article class="card step" data-step="1"><span class="verb">trinken</span><p class="vsent">Sie trinkt <b class="m">einen Kaffee</b>.</p></article>
+        <article class="card step" data-step="1"><span class="verb">möchten</span><p class="vsent">Ich möchte <b class="m">einen Salat</b>.</p></article>
+        <article class="card step" data-step="1"><span class="verb">einladen</span><p class="vsent">Ich lade <b class="m">den Freund</b> ein.</p></article>
+      </div>
+      <p class="rule step" data-step="2" style="align-self:flex-start"><b>Achtung:</b> Nach <b>sein</b> kommt Nominativ. <span class="okmark">Das ist der Hund.</span> <span class="xmark">Das ist den Hund.</span></p>
+    </div></section>
+
+    <!-- 5 · Quiz -->
+    <section class="slide" data-stage="2" data-title="Nominativ oder Akkusativ?"><div class="inner">
+      <header class="head">
+        <p class="tag">2 · Wann?</p>
+        <h2 class="title">Nominativ oder Akkusativ?</h2>
+        <p class="sub">Denkt zuerst. Dann kommt die Lösung.</p>
+      </header>
+      <div class="qlist">
+        <div class="qrow"><div class="qs">Ich sehe <span class="blank"><span class="step m" data-step="1">den</span></span> Hund. <small>der Hund</small></div><span class="why ak step" data-step="1">Akkusativ · sehen</span></div>
+        <div class="qrow"><div class="qs"><span class="blank"><span class="step m" data-step="2">Der</span></span> Hund ist groß. <small>der Hund</small></div><span class="why step" data-step="2">Nominativ · Wer ist groß?</span></div>
+        <div class="qrow"><div class="qs">Ich habe <span class="blank"><span class="step f" data-step="3">die</span></span> Katze. <small>die Katze</small></div><span class="why ak step" data-step="3">Akkusativ · die bleibt gleich</span></div>
+        <div class="qrow"><div class="qs">Das ist <span class="blank"><span class="step m" data-step="4">der</span></span> Mann. <small>der Mann</small></div><span class="why step" data-step="4">Nominativ · nach sein</span></div>
+        <div class="qrow"><div class="qs">Ich möchte <span class="blank"><span class="step m" data-step="5">einen</span></span> Salat. <small>ein Salat</small></div><span class="why ak step" data-step="5">Akkusativ · möchten</span></div>
+      </div>
+    </div></section>
+
+    <!-- 6 · Satz kürzen -->
+    <section class="slide" data-stage="3" data-title="Wir kürzen den Satz"><div class="inner">
+      <header class="head">
+        <p class="tag">3 · Pronomen</p>
+        <h2 class="title">Wir kürzen den Satz</h2>
+        <p class="sub">Wir wiederholen das Wort nicht noch einmal</p>
+      </header>
+      <div class="roles">
+        <div class="sline"><span class="s">Ich sehe <span class="m">den Hund</span>.</span></div>
+        <div class="step dsp" data-step="1" style="font-size:1.5rem;color:var(--muted)">↓ ersetzen</div>
+        <div class="sline step" data-step="1"><span class="s">Ich sehe <span class="m"><span class="hl" data-step="1">ihn</span></span>.</span></div>
+        <div class="step dsp" data-step="2" style="font-size:2.8rem;font-weight:800"><span class="m">ihn</span> = <span class="m">den Hund</span></div>
+      </div>
+      <div class="swap" style="min-height:4rem">
+        <p class="note" data-off="1">Müssen wir „Hund“ noch einmal sagen?</p>
+        <p class="note step" data-step="1" data-off="2">Wer ist „ihn“? <b class="m">Der Hund.</b></p>
+        <p class="rule step" data-step="2">Das Pronomen ersetzt <b>Artikel + Nomen</b> zusammen.</p>
+      </div>
+    </div></section>
+
+    <!-- 7 · Spiegel -->
+    <section class="slide" data-stage="3" data-title="Artikel und Pronomen"><div class="inner">
+      <header class="head">
+        <p class="tag">3 · Pronomen</p>
+        <h2 class="title">Artikel und Pronomen</h2>
+        <p class="sub">Beide ändern sich an derselben Stelle</p>
+      </header>
+      <div class="tbl mir">
+        <div class="row mir5 hd"><span style="grid-column:1/3">Nominativ</span><span></span><span style="grid-column:4/6">Akkusativ</span></div>
+        <div class="row mir5">
+          <div class="cell"><span class="m art">der</span> Hund</div><div class="pron m">er</div><div class="arrow">→</div>
+          <div class="cell"><span class="m art hl" data-step="4">den</span> Hund</div><div class="pron m"><span class="hl" data-step="4">ihn</span></div>
+        </div>
+        <div class="row mir5 step" data-step="1">
+          <div class="cell"><span class="f art">die</span> Frau</div><div class="pron f">sie</div><div class="arrow">→</div>
+          <div class="cell"><span class="f art">die</span> Frau</div><div class="pron f">sie</div>
+        </div>
+        <div class="row mir5 step" data-step="2">
+          <div class="cell"><span class="n art">das</span> Kind</div><div class="pron n">es</div><div class="arrow">→</div>
+          <div class="cell"><span class="n art">das</span> Kind</div><div class="pron n">es</div>
+        </div>
+        <div class="row mir5 step" data-step="3">
+          <div class="cell"><span class="p art">die</span> Kinder</div><div class="pron p">sie</div><div class="arrow">→</div>
+          <div class="cell"><span class="p art">die</span> Kinder</div><div class="pron p">sie</div>
+        </div>
+      </div>
+      <p class="rule step" data-step="4">Gleiche Stelle, gleiche Änderung: <b class="m">der → den</b> und <b class="m">er → ihn</b>. Alles andere bleibt gleich.</p>
+    </div></section>
+
+    <!-- 8 · Ersetzt -->
+    <section class="slide" data-stage="3" data-title="Ersetzt das Wort"><div class="inner">
+      <header class="head">
+        <p class="tag">3 · Pronomen</p>
+        <h2 class="title">Ersetzt das Wort</h2>
+        <p class="sub">Sagt den Satz mit Pronomen</p>
+      </header>
+      <div class="rgrid">
+        <div class="rc"><p>Ich sehe <b class="m">den Mann</b>.</p><p class="a step" data-step="1">Ich sehe <span class="m"><span class="hl" data-step="1">ihn</span></span>.</p></div>
+        <div class="rc"><p>Ich kenne <b class="f">die Frau</b>.</p><p class="a step" data-step="2">Ich kenne <span class="f"><span class="hl" data-step="2">sie</span></span>.</p></div>
+        <div class="rc"><p>Ich habe <b class="n">das Buch</b>.</p><p class="a step" data-step="3">Ich habe <span class="n"><span class="hl" data-step="3">es</span></span>.</p></div>
+        <div class="rc"><p>Wir sehen <b class="p">die Kinder</b>.</p><p class="a step" data-step="4">Wir sehen <span class="p"><span class="hl" data-step="4">sie</span></span>.</p></div>
+        <div class="rc"><p>Ich trinke <b class="m">den Kaffee</b>.</p><p class="a step" data-step="5">Ich trinke <span class="m"><span class="hl" data-step="5">ihn</span></span>. <span class="tipx">Auch Dinge: der Kaffee = er</span></p></div>
+        <div class="rc"><p>Ich kaufe <b class="f">die Tasche</b>.</p><p class="a step" data-step="6">Ich kaufe <span class="f"><span class="hl" data-step="6">sie</span></span>.</p></div>
+      </div>
+    </div></section>
+
+    <!-- 9 · ich, du, wir, ihr -->
+    <section class="slide" data-stage="3" data-title="ich, du, wir, ihr"><div class="inner">
+      <header class="head">
+        <p class="tag">3 · Pronomen</p>
+        <h2 class="title">ich, du, wir, ihr</h2>
+        <p class="sub">Hier gibt es keinen Artikel. Wir lernen die Formen.</p>
+      </header>
+      <div class="pairs">
+        <div class="pc"><span>ich</span><span class="arr">→</span><span class="to"><span class="hl" data-step="0">mich</span></span></div>
+        <div class="pc"><span>du</span><span class="arr">→</span><span class="to"><span class="hl" data-step="0">dich</span></span></div>
+        <div class="pc step" data-step="1"><span>wir</span><span class="arr">→</span><span class="to"><span class="hl" data-step="1">uns</span></span></div>
+        <div class="pc step" data-step="1"><span>ihr</span><span class="arr">→</span><span class="to"><span class="hl" data-step="1">euch</span></span></div>
+      </div>
+      <div class="sents step" data-step="2">
+        <p>Du siehst <b>mich</b>.</p>
+        <p>Ich lade <b>dich</b> ein.</p>
+        <p>Er sieht <b>uns</b>.</p>
+        <p>Ich lade <b>euch</b> ein.</p>
+      </div>
+    </div></section>
+
+    <!-- 10 · Tabelle -->
+    <section class="slide" data-stage="3" data-title="Personalpronomen im Akkusativ"><div class="inner">
+      <header class="head">
+        <p class="tag">3 · Pronomen</p>
+        <h2 class="title">Personalpronomen im Akkusativ</h2>
+        <p class="sub">Die ganze Tabelle</p>
+      </header>
+      <div class="ptbl">
+        <div class="pcol">
+          <h3>Singular</h3>
+          <div class="pr"><span>ich</span><span class="arrow">→</span><span class="to">mich</span></div>
+          <div class="pr"><span>du</span><span class="arrow">→</span><span class="to">dich</span></div>
+          <div class="pr"><span class="m">er</span><span class="arrow">→</span><span class="to m">ihn</span></div>
+          <div class="pr dimit" data-step="1"><span class="n">es</span><span class="arrow">→</span><span class="to n">es</span></div>
+          <div class="pr dimit" data-step="1"><span class="f">sie</span><span class="arrow">→</span><span class="to f">sie</span></div>
+        </div>
+        <div class="pcol">
+          <h3>Plural</h3>
+          <div class="pr"><span>wir</span><span class="arrow">→</span><span class="to">uns</span></div>
+          <div class="pr"><span>ihr</span><span class="arrow">→</span><span class="to">euch</span></div>
+          <div class="pr dimit" data-step="1"><span class="p">sie</span><span class="arrow">→</span><span class="to p">sie</span></div>
+          <div class="pr dimit" data-step="1"><span>Sie</span><span class="arrow">→</span><span class="to">Sie</span></div>
+        </div>
+      </div>
+      <div class="swap" style="min-height:4rem">
+        <p class="rule step" data-step="1" data-off="2"><b>5 ändern sich:</b> ich, du, er, wir, ihr</p>
+        <p class="rule step" data-step="2"><b>4 bleiben gleich:</b> es, sie, sie, Sie</p>
+      </div>
+    </div></section>
+
+    <!-- 11 · Subjekt / Objekt -->
+    <section class="slide" data-stage="4" data-title="Nur das Objekt ändert sich"><div class="inner">
+      <header class="head">
+        <p class="tag">4 · Wechseln</p>
+        <h2 class="title">Nur das Objekt ändert sich</h2>
+        <p class="sub">Wer macht es? Das bleibt gleich.</p>
+      </header>
+      <div class="roles">
+        <div class="sline">
+          <span class="s">Ich sehe <span class="m"><span class="hl" data-step="1">ihn</span></span>.</span>
+          <div class="r step" data-step="1"><span><b>Ich</b> = Wer? (Nominativ)</span><span><b>ihn</b> = Wen? (Akkusativ)</span></div>
+        </div>
+        <div class="sline step" data-step="2">
+          <span class="s"><span class="m">Er</span> sieht <span class="hl" data-step="2">mich</span>.</span>
+          <div class="r"><span><b>Er</b> = Wer? (Nominativ)</span><span><b>mich</b> = Wen? (Akkusativ)</span></div>
+        </div>
+        <div class="sline step" data-step="3">
+          <span class="s"><span class="xmark">Ich sehe er.</span> &nbsp;<span class="okmark">Ich sehe ihn.</span></span>
+        </div>
+      </div>
+      <p class="rule step" data-step="3">Wer macht es? <b>ich, er</b> bleibt. Wen oder was? <b>mich, ihn</b> ändert sich.</p>
+    </div></section>
+
+    <!-- 12 · Ablauf -->
+    <section class="slide" data-stage="4" data-title="Wann ändert sich das Wort?"><div class="inner">
+      <header class="head">
+        <p class="tag">4 · Wechseln</p>
+        <h2 class="title">Wann ändert sich das Wort?</h2>
+        <p class="sub">Drei Schritte, jedes Mal</p>
+      </header>
+      <div class="flow">
+        <article class="fc">
+          <span class="n1">1</span>
+          <h3>Finde das Verb.</h3>
+          <p class="ex">Ich <span class="hl" data-step="0">sehe</span> den Hund.</p>
+          <p class="ar">Das Verb ist: sehen.</p>
+        </article>
+        <article class="fc step" data-step="1">
+          <span class="n1">2</span>
+          <h3>Frage: Wen? Was?</h3>
+          <p class="ex">Wen sehe ich? → <b class="m">den Hund</b></p>
+          <p class="ar">Die Antwort ist das Objekt.</p>
+        </article>
+        <article class="fc step" data-step="2">
+          <span class="n1">3</span>
+          <h3>Akkusativ!</h3>
+          <p class="ex"><span class="m">der → den</span><br><span class="m">er → ihn</span></p>
+          <p class="ar">Ändere den Artikel oder nimm das Pronomen.</p>
+        </article>
+      </div>
+      <p class="rule step" data-step="3">Die Antwort ist <b>Wer?</b> → bleibt Nominativ.</p>
+    </div></section>
+
+    <!-- 13 · für -->
+    <section class="slide" data-stage="5" data-title="für + Akkusativ"><div class="inner">
+      <header class="head">
+        <p class="tag">5 · für</p>
+        <h2 class="title">für + Akkusativ</h2>
+        <p class="sub">Immer. Ohne Ausnahme.</p>
+      </header>
+      <div class="roles">
+        <div class="sline"><span class="s">Das Wasser ist für <span class="m"><span class="hl" data-step="0">den</span> Hund</span>.</span></div>
+        <div class="sline step" data-step="1"><span class="s">Das Wasser ist für <span class="m"><span class="hl" data-step="1">ihn</span></span>.</span></div>
+      </div>
+      <div class="swap" style="min-height:3.5rem">
+        <p class="note step" data-step="1" data-off="2">Auch mit „ist“: nach <b>für</b> kommt immer Akkusativ.</p>
+        <p class="note step" data-step="2">Das gilt für alle Pronomen:</p>
+      </div>
+      <div class="fur step" data-step="2">
+        <span class="fx">für mich</span><span class="fx">für dich</span><span class="fx m">für ihn</span><span class="fx f">für sie</span><span class="fx n">für es</span>
+        <span class="fx">für uns</span><span class="fx">für euch</span><span class="fx p">für sie</span><span class="fx">für Sie</span>
+      </div>
+    </div></section>
+
+    <!-- 14 · Café -->
+    <section class="slide" data-stage="5" data-title="Im Café"><div class="inner">
+      <header class="head">
+        <p class="tag">5 · für</p>
+        <h2 class="title">Im Café</h2>
+        <p class="sub">Welches Pronomen passt?</p>
+      </header>
+      <div class="qlist">
+        <div class="qrow"><div class="qs">Die Pizza ist für <span class="blank"><span class="step" data-step="1">mich</span></span>. <small>ich</small></div></div>
+        <div class="qrow"><div class="qs">Das Wasser ist für <span class="blank"><span class="step m" data-step="2">ihn</span></span>. <small>der Hund</small></div></div>
+        <div class="qrow"><div class="qs">Die Cola ist für <span class="blank"><span class="step" data-step="3">dich</span></span>. <small>du</small></div></div>
+        <div class="qrow"><div class="qs">Der Kaffee ist für <span class="blank"><span class="step f" data-step="4">sie</span></span>. <small>die Frau</small></div></div>
+        <div class="qrow"><div class="qs">Das Eis ist für <span class="blank"><span class="step p" data-step="5">sie</span></span>. <small>die Kinder</small></div></div>
+        <div class="qrow"><div class="qs">Der Tee ist für <span class="blank"><span class="step" data-step="6">uns</span></span>. <small>wir</small></div></div>
+      </div>
+    </div></section>
+
+    <!-- 15 · Zusammenfassung -->
+    <section class="slide" data-stage="6" data-title="Zusammenfassung"><div class="inner">
+      <header class="head">
+        <p class="tag">Am Ende</p>
+        <h2 class="title">Zusammenfassung</h2>
+        <p class="sub">Das haben wir heute gelernt</p>
+      </header>
+      <div class="sum">
+        <div class="srow">
+          <div class="sl">Wann?</div>
+          <div class="sc">
+            <span class="sbig"><b>Wen? Was?</b> → Akkusativ</span>
+            <span class="muted">Nach sein: Nominativ</span>
+          </div>
+        </div>
+        <div class="srow step" data-step="1">
+          <div class="sl">Artikel</div>
+          <div class="sc">
+            <span class="sbig m"><span class="hl" data-step="1">der → den</span></span>
+            <span class="sbig m"><span class="hl" data-step="1">ein → einen</span></span>
+            <span class="muted">die · das · die bleiben gleich</span>
+          </div>
+        </div>
+        <div class="srow step" data-step="2">
+          <div class="sl">Pronomen</div>
+          <div class="sc col">
+            <div class="prow">
+              <div class="pch"><span class="a">ich</span><i>↓</i><span class="b"><span class="hl" data-step="2">mich</span></span></div>
+              <div class="pch"><span class="a">du</span><i>↓</i><span class="b"><span class="hl" data-step="2">dich</span></span></div>
+              <div class="pch"><span class="a">er</span><i>↓</i><span class="b m"><span class="hl" data-step="2">ihn</span></span></div>
+              <div class="pch same"><span class="a">es</span><i>↓</i><span class="b n">es</span></div>
+              <div class="pch same"><span class="a">sie</span><i>↓</i><span class="b f">sie</span></div>
+              <span class="vdiv"></span>
+              <div class="pch"><span class="a">wir</span><i>↓</i><span class="b"><span class="hl" data-step="2">uns</span></span></div>
+              <div class="pch"><span class="a">ihr</span><i>↓</i><span class="b"><span class="hl" data-step="2">euch</span></span></div>
+              <div class="pch same"><span class="a">sie</span><i>↓</i><span class="b p">sie</span></div>
+              <div class="pch same"><span class="a">Sie</span><i>↓</i><span class="b">Sie</span></div>
+            </div>
+            <p class="legend">oben: Nominativ · unten: Akkusativ · <b>5 ändern sich</b>, 4 bleiben gleich</p>
+          </div>
+        </div>
+        <div class="srow step" data-step="3">
+          <div class="sl">für</div>
+          <div class="sc">
+            <span class="sbig">für + Akkusativ</span>
+            <span class="sbig"><span class="m">für den Hund</span> = <span class="m">für ihn</span></span>
+            <span class="muted">für mich · für dich · für uns · für euch</span>
+          </div>
+        </div>
+      </div>
+      <p class="rule step" data-step="4"><b>Gut gemacht!</b> Gleiche Stelle, gleiche Änderung: Artikel und Pronomen.</p>
+    </div></section>
+  </main>
+
+  <footer class="foot">
+    <div class="segs" id="segs" role="tablist" aria-label="Folien"></div>
+    <div class="navrow">
+      <button class="btn" id="prev" aria-label="Zurück">← Zurück</button>
+      <div class="meta">
+        <span class="pips" id="pips" aria-hidden="true"></span>
+        <span class="count" id="count">1 / 16</span>
+        <span class="hint"><kbd>←</kbd> <kbd>→</kbd> · <kbd>Leertaste</kbd> · <kbd>O</kbd> Übersicht</span>
+      </div>
+      <button class="btn next" id="next" aria-label="Weiter">Weiter →</button>
+    </div>
+  </footer>
+</div>
+
+<div class="ov" id="ov" role="dialog" aria-label="Übersicht">
+  <div class="ovtop"><h2>Übersicht</h2><button class="ib" id="ovClose" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="ovgrid" id="ovgrid"></div>
+</div>
+
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var chips=[].slice.call(document.querySelectorAll('.chip'));
+  var names={0:'Start',1:'Artikel',2:'Wann?',3:'Pronomen',4:'Wechseln',5:'für',6:'Ende'};
+  var app=document.getElementById('app');
+  var stageEl=document.getElementById('stage');
+  var segs=document.getElementById('segs'), pips=document.getElementById('pips'), count=document.getElementById('count');
+  var prevB=document.getElementById('prev'), nextB=document.getElementById('next');
+  var edgeL=document.getElementById('edgeL'), edgeR=document.getElementById('edgeR');
+  var ov=document.getElementById('ov'), ovgrid=document.getElementById('ovgrid');
+  var i=0, step=0;
+
+  function maxStep(el){
+    var m=0;
+    [].forEach.call(el.querySelectorAll('[data-step],[data-off]'),function(e){
+      m=Math.max(m,+(e.dataset.step||0),+(e.dataset.off||0));
+    });
+    return m;
+  }
+  function stageOf(k){ return +slides[k].dataset.stage; }
+
+  /* build segment bar + overview */
+  var segEls=slides.map(function(s,k){
+    var b=document.createElement('button');
+    b.className='seg'; b.setAttribute('aria-label',(k+1)+': '+s.dataset.title); b.title=(k+1)+' · '+s.dataset.title;
+    b.addEventListener('click',function(e){ e.stopPropagation(); go(k,0); });
+    segs.appendChild(b);
+    return b;
+  });
+  slides.forEach(function(s,k){
+    var b=document.createElement('button');
+    b.className='ovitem';
+    b.innerHTML='<small></small><span></span>';
+    b.firstChild.textContent=(k+1)+' · '+names[stageOf(k)];
+    b.lastChild.textContent=s.dataset.title;
+    b.addEventListener('click',function(){ closeOv(); go(k,0); });
+    ovgrid.appendChild(b);
+  });
+  var ovEls=[].slice.call(ovgrid.children);
+
+  function setHash(){
+    try{ history.replaceState(null,'','#s'+(i+1)); }catch(e){ try{ location.hash='s'+(i+1); }catch(_){} }
+  }
+
+  function apply(){
+    slides.forEach(function(s,k){
+      s.classList.toggle('active',k===i);
+      s.classList.toggle('before',k<i);
+      s.classList.toggle('after',k>i);
+      s.setAttribute('aria-hidden',k===i?'false':'true');
+    });
+    var s=slides[i];
+    [].forEach.call(s.querySelectorAll('[data-step],[data-off]'),function(e){
+      var a=e.dataset.step===undefined?0:+e.dataset.step;
+      var b=e.dataset.off===undefined?Infinity:+e.dataset.off;
+      e.classList.toggle('on',step>=a&&step<b);
+    });
+    var m=maxStep(s);
+    pips.innerHTML='';
+    for(var p=0;p<m;p++){ var d=document.createElement('i'); if(p<step) d.className='f'; pips.appendChild(d); }
+    count.textContent=(i+1)+' / '+slides.length;
+    segEls.forEach(function(b,k){ b.className='seg'+(k<i?' done':'')+(k===i?' cur':''); });
+    ovEls.forEach(function(b,k){ b.classList.toggle('cur',k===i); });
+    var st=stageOf(i);
+    chips.forEach(function(c){
+      var n=+c.dataset.stage;
+      c.setAttribute('aria-current',n===st?'true':'false');
+      c.classList.toggle('done',n<st);
+    });
+    var atStart=(i===0&&step===0), atEnd=(i===slides.length-1&&step>=m);
+    prevB.disabled=atStart; nextB.disabled=atEnd; edgeL.disabled=atStart; edgeR.disabled=atEnd;
+    setHash();
+  }
+
+  function go(n,s){
+    var ni=Math.max(0,Math.min(slides.length-1,n));
+    if(ni!==i){ slides[ni].scrollTop=0; }
+    i=ni;
+    step=(s==='end')?maxStep(slides[i]):(s||0);
+    apply();
+  }
+  function next(){
+    var m=maxStep(slides[i]);
+    if(step<m){ step++; apply(); }
+    else if(i<slides.length-1){ go(i+1,0); }
+  }
+  function prev(){
+    if(step>0){ step--; apply(); }
+    else if(i>0){ go(i-1,'end'); }
+  }
+
+  nextB.addEventListener('click',next);
+  prevB.addEventListener('click',prev);
+  edgeR.addEventListener('click',function(e){ e.stopPropagation(); next(); });
+  edgeL.addEventListener('click',function(e){ e.stopPropagation(); prev(); });
+  chips.forEach(function(c){
+    c.addEventListener('click',function(){
+      var n=+c.dataset.stage;
+      for(var k=0;k<slides.length;k++){ if(stageOf(k)===n){ go(k,0); break; } }
+    });
+  });
+
+  function openOv(){ ov.classList.add('open'); }
+  function closeOv(){ ov.classList.remove('open'); }
+  document.getElementById('ovBtn').addEventListener('click',openOv);
+  document.getElementById('ovClose').addEventListener('click',closeOv);
+  ov.addEventListener('click',function(e){ if(e.target===ov) closeOv(); });
+
+  function toggleFs(){
+    try{
+      if(document.fullscreenElement){ document.exitFullscreen(); }
+      else if(document.documentElement.requestFullscreen){ var p=document.documentElement.requestFullscreen(); if(p&&p.catch) p.catch(function(){}); }
+    }catch(e){}
+  }
+  var fs=document.getElementById('fsBtn');
+  if(!document.documentElement.requestFullscreen){ fs.hidden=true; }
+  fs.addEventListener('click',toggleFs);
+
+  document.addEventListener('keydown',function(e){
+    if(e.ctrlKey||e.metaKey||e.altKey) return;
+    var k=e.key, t=e.target&&e.target.tagName;
+    if(k==='Escape'){ closeOv(); return; }
+    if(ov.classList.contains('open')) return;
+    if(k==='ArrowRight'||k==='PageDown'||k==='ArrowDown'||k===' '||k==='Enter'){
+      if((k===' '||k==='Enter')&&t==='BUTTON') return;
+      e.preventDefault(); next();
+    } else if(k==='ArrowLeft'||k==='PageUp'||k==='ArrowUp'||k==='Backspace'){
+      e.preventDefault(); prev();
+    } else if(k==='Home'){ e.preventDefault(); go(0,0); }
+    else if(k==='End'){ e.preventDefault(); go(slides.length-1,'end'); }
+    else if(k==='o'||k==='O'){ openOv(); }
+    else if(k==='f'||k==='F'){ toggleFs(); }
+  });
+
+  stageEl.addEventListener('click',function(e){
+    if(e.target.closest('button,a')) return;
+    var sel=window.getSelection&&window.getSelection().toString();
+    if(sel) return;
+    next();
+  });
+
+  var tx=null;
+  stageEl.addEventListener('touchstart',function(e){ tx=e.changedTouches[0].clientX; },{passive:true});
+  stageEl.addEventListener('touchend',function(e){
+    if(tx===null) return;
+    var dx=e.changedTouches[0].clientX-tx; tx=null;
+    if(dx<-60) next(); else if(dx>60) prev();
+  },{passive:true});
+
+  window.addEventListener('hashchange',function(){
+    var m=/^#s(\d+)$/.exec(location.hash);
+    if(m){ var n=+m[1]-1; if(n!==i&&n>=0&&n<slides.length) go(n,0); }
+  });
+
+  /* theme: system -> dark -> light */
+  var root=document.documentElement, modes=[null,'dark','light'], mi=0;
+  try{ var saved=localStorage.getItem('akk-theme'); if(saved){ mi=Math.max(0,modes.indexOf(saved)); } }catch(e){}
+  function setTheme(){
+    if(modes[mi]) root.setAttribute('data-theme',modes[mi]); else root.removeAttribute('data-theme');
+    try{ if(modes[mi]) localStorage.setItem('akk-theme',modes[mi]); else localStorage.removeItem('akk-theme'); }catch(e){}
+  }
+  setTheme();
+  document.getElementById('themeBtn').addEventListener('click',function(){ mi=(mi+1)%modes.length; setTheme(); });
+
+  var start=0, h=/^#s(\d+)$/.exec(location.hash);
+  if(h){ start=Math.max(0,Math.min(slides.length-1,+h[1]-1)); }
+  go(start,0);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ app.classList.add('ready'); }); });
+})();
+</script>
+</body>
+</html>
